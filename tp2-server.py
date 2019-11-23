@@ -17,6 +17,7 @@
 from socket import *
 from threading import *
 from Tkinter import *
+import random
 
 HOST = '127.0.0.1' #hostname, in this case, localhost
 PORT = 7777
@@ -31,6 +32,9 @@ class Grid:
         h = lins * cell_h + 1
         w = cols * cell_w + 1
 
+        # Possible slots controller
+        self.controller = [[0 for x in range(lins)] for y in range(cols)]
+
         self.w = Canvas(master, height = h, width = w)
         self.w.configure(borderwidth=0, highlightthickness=0)
         self.w.pack()
@@ -40,13 +44,45 @@ class Grid:
         for i in range(0, w, cell_w):
             self.w.create_line([(0, i), (w, i)])
 
-        def draw_circle(self, lin, col):
-            x = col * self.cell_h
-            y = lin * self.cell_w
+    def draw_circle(self, lin, col):
+        x = col * self.cell_h
+        y = lin * self.cell_w
+        self.controller[lin][col] = 1
 
-            return self.w.create_oval(x + 10, y + 10,
-                    x + self.cell_w - 10, y + self.cell_h - 10,
-                    fill = 'blue', outline = '')
+        print("Grid status: \n")
+        for i in range(0, len(self.controller)):
+            print(self.controller[i])
+
+        return self.w.create_oval(x + 10, y + 10, x + self.cell_w - 10, y + self.cell_h - 10, fill = 'blue', outline = '')
+
+class Geometrics:
+    def __init__(self, grid, id = random.randrange(0, 1000), x = 10, y = 10, color = "black"):
+        self.grid  = grid
+        self.id    = id
+        self.x     = x
+        self.y     = y
+        self.color = color
+
+    # Abstract methods:
+    def draw(self, lin, col):
+        pass
+
+    def area(self):
+        pass
+
+    # Getters and Setters:
+    def get_xy(self):
+        return [self.x, self.y]
+
+    def set_xy(self, x, y):
+        self.x = x
+        self.y = y
+
+    def remove(self):
+        self.grid.delete(self.id)
+    
+
+    
 
 class Server(Thread):
     def __init__(self, grid):
@@ -59,7 +95,7 @@ class Server(Thread):
         self.server.listen(5)
         self.client, addr = self.server.accept()
 
-    def process_cmd(self, cmg):
+    def process_cmd(self, cmd):
         # + id shape(c|s) color lin col
         # - id
         # m id lin col
@@ -75,12 +111,12 @@ class Server(Thread):
         while True:
             try:
                 text = self.client.recv(1024)
-                if not text:
-                    break
+                print(text)
                 reply = self.process_cmd(text)
                 self.client.sendall(reply)
             except:
-                break
+               print("try again")
+               break
         
         self.client.close()
 
@@ -89,4 +125,5 @@ if __name__ == '__main__':
     root.title('Grid World')
     grid = Grid(root, 5, 5, cell_h = 60, cell_w = 60)
     app  = Server(grid).start()
+    print ('Server running on ' + str(HOST) + ' on port ' + str(PORT))
     root.mainloop()
