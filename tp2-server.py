@@ -80,9 +80,6 @@ class Geometrics:
 
     def remove(self):
         self.grid.delete(self.id)
-    
-
-    
 
 class Server(Thread):
     def __init__(self, grid):
