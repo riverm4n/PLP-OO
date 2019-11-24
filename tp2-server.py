@@ -21,7 +21,7 @@ from tkinter import *
 import random
 
 HOST = '127.0.0.1' #hostname, in this case, localhost
-PORT = 7777
+PORT = 7789
 
 class Grid:
     def __init__(self, master, lins, cols, cell_h = 50, cell_w = 50):
@@ -90,10 +90,7 @@ class Grid:
 
         figure.move(lin, col)
         self.w.pack()
-
         
-
-
 class Geometrics:
     '''
     Implements a 2D geometric figure using TK
@@ -104,7 +101,8 @@ class Geometrics:
         self.x     = x
         self.y     = y
         self.color = color
-        self.shape = None # Image representation
+        self.shape = None # Shape representation
+        self.id_tx = None # Text representation
 
     # Abstract methods:
     def draw(self):
@@ -126,6 +124,7 @@ class Geometrics:
 
     def remove(self):
         self.grid.w.delete(self.shape)
+        self.grid.w.delete(self.id_tx)
 
     def move(self, x, y):
         self.remove()
@@ -150,6 +149,7 @@ class Circle(Geometrics):
         self.grid.controller[lin][col] = self.id
 
         self.shape = self.grid.w.create_oval(x + 10, y + 10, x + self.grid.cell_w - 10, y + self.grid.cell_h - 10, fill = self.color, outline = '')
+        self.id_tx = self.grid.w.create_text(x + (self.grid.cell_w/2), y + (self.grid.cell_h/2), text=str(self.id), fill = 'white')
         return self.shape
     
 class Square(Geometrics):
@@ -170,6 +170,7 @@ class Square(Geometrics):
         self.grid.controller[lin][col] = self.id
 
         self.shape = self.grid.w.create_rectangle(x + 10, y + 10, x + self.grid.cell_w - 10, y + self.grid.cell_h - 10, fill = self.color, outline = '')
+        self.id_tx = self.grid.w.create_text(x + (self.grid.cell_w/2), y + (self.grid.cell_h/2), text=str(self.id), fill = 'white')
         return self.shape
 
 class Inventory:
@@ -180,7 +181,6 @@ class Inventory:
         self.figures.append(figure)
 
     def exists(self, lin, col):
-        print("Buscando pela posição: " + str(lin) + ", " + str(col))
         for i in range(0, len(self.figures)):
             if self.figures[i].get_x() == lin and self.figures[i].get_y() == col:
                 return self.figures[i]
@@ -188,11 +188,8 @@ class Inventory:
         return None
 
     def exists_id(self, id):
-        print("Verificando se existe a figura com o id " + str(id))
         for i in range(0, len(self.figures)):
-            print("dentro do for ")
             if self.figures[i].get_id() == id:
-                print("encontrei com o mesmo id!")
                 return self.figures[i]
        
         return None
@@ -217,8 +214,6 @@ class Server(Thread):
         # - shape(c|s) color
 
         cmd_array = cmd.split()
-        print(cmd_array)
-
         reply = 'Done! \n'
 
         # cmd size checking:
@@ -226,28 +221,37 @@ class Server(Thread):
         if(len(cmd_array) == 6):
             #checking commands:
             if cmd_array[0] == b'+':
-                if(cmd_array[2] == b'c'):
-                    circle = Circle(self.grid, int(cmd_array[1]), int(cmd_array[4]), int(cmd_array[5]), cmd_array[3].decode())
-                    self.grid.draw_circle(int(cmd_array[4]), int(cmd_array[5]), circle)
-                elif(cmd_array[2] == b's'):
-                    square = Square(self.grid, int(cmd_array[1]), int(cmd_array[4]), int(cmd_array[5]), cmd_array[3].decode())
-                    self.grid.draw_square(int(cmd_array[4]), int(cmd_array[5]), square)
+                if(self.grid.figures.exists_id(int(cmd_array[1])) == None):
+                    if(self.grid.figures.exists(int(cmd_array[4]), (int(cmd_array[5]))) == None):
+                        if(cmd_array[2] == b'c'):
+                            circle = Circle(self.grid, int(cmd_array[1]), int(cmd_array[4]), int(cmd_array[5]), cmd_array[3].decode())
+                            self.grid.draw_circle(int(cmd_array[4]), int(cmd_array[5]), circle)
+                        elif(cmd_array[2] == b's'):
+                            square = Square(self.grid, int(cmd_array[1]), int(cmd_array[4]), int(cmd_array[5]), cmd_array[3].decode())
+                            self.grid.draw_square(int(cmd_array[4]), int(cmd_array[5]), square)
+                        else:
+                            reply = 'Shape not recognized. \n'
+                    else:
+                        reply = 'There is already a figure in this position. \n'
                 else:
-                    reply = 'Shape not recognized.'
+                    reply = 'There is already a figure with this id\n'                
         elif(len(cmd_array) == 5):
             # + shape color lin col
             if(cmd_array[0] == b'+'):
-                if(cmd_array[1] == b'c'):
-                    random_id = random.randrange(0,50)
-                    circle = Circle(self.grid, random_id, int(cmd_array[3]), int(cmd_array[4]), cmd_array[2].decode())
-                    print(circle.__repr__())
-                    self.grid.draw_circle(int(cmd_array[3]), int(cmd_array[4]), circle)
-                elif(cmd_array[1] == b's'):
-                    random_id = random.randrange(0,50)
-                    square = Square(self.grid, random_id, int(cmd_array[3]), int(cmd_array[4]), cmd_array[2].decode())
-                    self.grid.draw_square(int(cmd_array[3]), int(cmd_array[4]), square)
+                if(self.grid.figures.exists(int(cmd_array[3]), (int(cmd_array[4]))) == None):
+                    if(cmd_array[1] == b'c'):
+                        random_id = random.randrange(0,50)
+                        circle = Circle(self.grid, random_id, int(cmd_array[3]), int(cmd_array[4]), cmd_array[2].decode())
+                        print(circle.__repr__())
+                        self.grid.draw_circle(int(cmd_array[3]), int(cmd_array[4]), circle)
+                    elif(cmd_array[1] == b's'):
+                        random_id = random.randrange(0,50)
+                        square = Square(self.grid, random_id, int(cmd_array[3]), int(cmd_array[4]), cmd_array[2].decode())
+                        self.grid.draw_square(int(cmd_array[3]), int(cmd_array[4]), square)
+                    else:
+                        reply = 'Shape not recognized.\n'
                 else:
-                    reply = 'Shape not recognized.'
+                    reply = 'There is already a figure in this position.\n'
             # - shape color lin col
             elif(cmd_array[0] == b'-'):
                 figure = self.grid.figures.exists(int(cmd_array[3]), int(cmd_array[4]))
@@ -262,10 +266,13 @@ class Server(Thread):
                 print("id " + str(int(cmd_array[1])))
                 figure = self.grid.figures.exists_id(int(cmd_array[1]))
                 if (figure != None):
-                    print(figure.__repr__())
-                    self.grid.move_figure(figure, int(cmd_array[2]), int(cmd_array[3]))
+                    if(self.grid.figures.exists(int(cmd_array[2]), int(cmd_array[3]) == None)):
+                        print(figure.__repr__())
+                        self.grid.move_figure(figure, int(cmd_array[2]), int(cmd_array[3]))
+                    else:
+                        reply = 'Sorry, there is already a figure in this position.\n'
                 else:
-                    reply = 'Sorry, the shape you were looking for was not found.'
+                    reply = 'Sorry, the shape you were looking for was not found.\n'
         elif(len(cmd_array) == 2):
             # - id
             if(cmd_array[0] == b'-'):
@@ -274,11 +281,11 @@ class Server(Thread):
                     print(figure.__repr__())
                     self.grid.delete_figure(figure)
                 else:
-                    reply = 'Sorry, the shape you were looking for was not found.'
+                    reply = 'Sorry, the shape you were looking for was not found.\n'
             else:
-                reply = 'Sorry, I didn\'t understand'
+                reply = 'Sorry, I didn\'t understand\n'
         else:
-            reply = 'Sorry, I didn\'t understand'
+            reply = 'Sorry, I didn\'t understand\n'
 
         return reply
 
